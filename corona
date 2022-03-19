@@ -1,0 +1,126 @@
+#!/bin/bash
+export POSIXLY_CORRECT=yes
+export LC_NUMERIC=en_US.UTF-8
+
+optstring=":a:b:g:sh"
+
+infected(){
+    echo "$1" | sed '/^\s*$/d' | wc -l
+}
+
+filterBeforeDate(){
+    echo "$1" | awk -F ',' -v beforeDate="$2" '{if (beforeDate>=$2){print}}'
+}
+filterAfterDate(){
+    echo "$1" | awk -F ',' -v afterDate="$2" '{if (afterDate<=$2){print}}'
+}
+filterGender(){
+    echo "$1" | awk -F ',' -v gender="$2" '{if (gender==$4){print}}'
+}
+filterAgeCount(){
+    echo "$1" | awk -F ',' -v ageFrom="$2"  -v ageTo="$3"  '{if (ageFrom <= $3 && ageTo >=$3){print}}' | wc -l
+}
+
+age(){
+    echo "0-5   : $(filterAgeCount "$1" 0 5)"
+    echo "6-15  : $(filterAgeCount "$1" 6 15)"
+    echo "16-25 : $(filterAgeCount "$1" 16 25)"
+    echo "26-35 : $(filterAgeCount "$1" 26 35)"
+    echo "36-45 : $(filterAgeCount "$1" 36 45)"
+    echo "46-55 : $(filterAgeCount "$1" 46 55)"
+    echo "56-65 : $(filterAgeCount "$1" 56 65)"
+    echo "66-75 : $(filterAgeCount "$1" 66 75)"
+    echo "76-85 : $(filterAgeCount "$1" 76 85)"
+    echo "86-95 : $(filterAgeCount "$1" 86 95)"
+    echo "96-105: $(filterAgeCount "$1" 96 105)"
+    echo ">105  : $(filterAgeCount "$1" 105 100000000)"
+}
+
+gender(){
+   echo "M: $(echo "$(filterGender "$1" M)" | wc -l)"
+   echo "Z: $(echo "$(filterGender "$1" Z)" | wc -l)"
+}
+
+FILE="osoby-short.csv"
+string="$(cat $FILE)"
+
+#parsovani argumentu
+while getopts $optstring options; do
+
+    case "${options}" in
+        a)
+            after=${OPTARG}
+        ;;
+        b)
+            before=${OPTARG}
+
+        ;;
+        g)
+            gender=${OPTARG}
+            echo "gender"
+            echo "$gender"
+        ;;
+        s) #je potreba udelat optional
+            shift
+            graphic=1
+            width=${OPTARG}
+            echo "graphic"
+            echo "$width"
+        ;;
+        h)
+            echo "help"
+        ;;
+    esac
+done
+
+if [ -n "$before" ]; then
+    string=$(filterBeforeDate "$string" "$before")
+fi
+if [ -n "$after" ]; then
+    string=$(filterAfterDate "$string" "$after")
+fi
+if [ -n "$gender" ]; then
+    string=$(filterGender "$string" "$gender")
+fi
+
+
+#parsovani commandu
+shift $(($OPTIND -1))
+case "$1" in
+    infected)
+        infected "$string"
+    ;;
+    merge)
+        beforeDate "$string" "$before"
+    ;;
+    gender)
+        gender "$string"
+    ;;
+    age)
+        age "$string"
+    ;;
+    daily)
+        echo "daily"
+    ;;
+    monthly)
+        echo "monthly"
+    ;;
+    yearly)
+        echo "yearly"
+    ;;
+    countries)
+        echo "countries"
+    ;;
+    districts)
+        echo "districts"
+    ;;
+    regions)
+        echo "regions"
+    ;;
+
+    *)
+        echo $1
+        echo "err"
+    ;;
+esac
+
