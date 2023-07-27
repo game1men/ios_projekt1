@@ -1,0 +1,280 @@
+#!/bin/bash
+export POSIXLY_CORRECT=yes
+export LC_NUMERIC=en_US.UTF-8
+
+optstring=":a:b:g:s:h"
+
+
+doCommand(){
+
+    #odstraneni prvniho radku
+    string=$(echo "$string" | sed '1d')
+
+    #filtrovani souboru
+    if [ -n "$before" ]; then
+        string=$(filterBeforeDate "$string" "$before")
+    fi
+    if [ -n "$after" ]; then
+        string=$(filterAfterDate "$string" "$after")
+    fi
+    if [ -n "$gender" ]; then
+        string=$(filterGender "$string" "$gender")
+    fi
+
+
+
+    #provadeni prikazu
+    case "$cmd" in
+        infected)
+            result=$(infected "$string")
+        ;;
+        merge)
+            result="$string\n$result"
+        ;;
+        gender)
+            result=$(gender "$string")
+        ;;
+        age)
+            result=$(age "$string")
+        ;;
+        daily)
+            result=$(daily "$string")
+        ;;
+        monthly)
+            result=$(monthly "$string")
+        ;;
+        yearly)
+            result=$(yearly "$string")
+        ;;
+        countries)
+            result=$(countries "$string")
+        ;;
+        districts)
+            result=$(districts "$string")
+        ;;
+        regions)
+            result=$(regions "$string")
+        ;;
+
+        *)
+            result="$string"
+        ;;
+    esac
+
+}
+
+infected(){
+    echo "$1" | sed '/^\s*$/d' | wc -l
+}
+
+filterBeforeDate(){
+    echo "$1" | awk -F ',' -v beforeDate="$2" '{if (beforeDate>=$2){print}}'
+}
+filterAfterDate(){
+    echo "$1" | awk -F ',' -v afterDate="$2" '{if (afterDate<=$2){print}}'
+}
+filterGender(){
+    echo "$1" | awk -F ',' -v gender="$2" '{if (gender==$4){print}}'
+}
+filterAgeCount(){
+    echo "$1" | awk -F ',' -v ageFrom="$2"  -v ageTo="$3"  '{if (ageFrom <= $3 && ageTo >=$3){print}}' | wc -l
+}
+
+age(){
+    echo "0-5   : $(filterAgeCount "$1" 0 5)"
+    echo "6-15  : $(filterAgeCount "$1" 6 15)"
+    echo "16-25 : $(filterAgeCount "$1" 16 25)"
+    echo "26-35 : $(filterAgeCount "$1" 26 35)"
+    echo "36-45 : $(filterAgeCount "$1" 36 45)"
+    echo "46-55 : $(filterAgeCount "$1" 46 55)"
+    echo "56-65 : $(filterAgeCount "$1" 56 65)"
+    echo "66-75 : $(filterAgeCount "$1" 66 75)"
+    echo "76-85 : $(filterAgeCount "$1" 76 85)"
+    echo "86-95 : $(filterAgeCount "$1" 86 95)"
+    echo "96-105: $(filterAgeCount "$1" 96 105)"
+    echo ">105  : $(filterAgeCount "$1" 105 100000000)"
+}
+
+districts (){
+    echo "$1"| awk -F ',' '{if ($6=="") {NONE++}else{count[$6]++}} END {for (word in count){ printf "%s: %s\n",word , count[word] | "sort -d" } if(NONE!=0){printf "NONE: %s\n",NONE}}' |  sed '1h'
+}
+
+regions  (){
+    echo "$1"| awk -F ',' '{if ($5=="") {NONE++}else{count[$5]++}} END {for (word in count){ printf "%s: %s\n",word , count[word] | "sort -d" }if(NONE!=0){ printf "NONE: %s\n",NONE}}' |  sed '1h'
+}
+
+countries(){
+    echo "$1"| awk -F ',' '{if ($8=="") {NONE++}else{count[$8]++}} END {for (word in count){ printf "%s: %s\n",word , count[word] | "sort -d" } if(NONE!=0){printf "NONE: %s\n",NONE}}' |  sed '1h'
+}
+
+daily(){
+    echo "$1"| awk -F ',' '{if ($2=="") {NONE++}else{count[$2]++}} END {for (word in count){ printf "%s: %s\n",word , count[word] | "sort -M" }if(NONE!=0){ printf "NONE: %s\n",NONE}}' |  sed '1h'
+}
+
+
+monthly(){
+    echo "$1" | awk -F ',' '{if ($2=="") {NONE++}else{count[substr($2, 1, length($2)-3)]++}} END {for (word in count){ printf "%s: %s\n",word , count[word] | "sort -M"  } if(NONE!=0){printf "NONE: %s\n",NONE}}' |  sed '1h'
+}
+
+yearly(){
+    echo "$1" | awk -F ',' '{if ($2=="") {NONE++}else{count[substr($2, 1, length($2)-6)]++}} END {for (word in count){ printf "%s: %s\n",word , count[word] | "sort -M"  } if(NONE!=0){printf "NONE: %s\n",NONE}}' |  sed '1h'
+}
+
+gender(){
+    echo "M: $(echo "$(filterGender "$1" M)" | wc -l)"
+    echo "Z: $(echo "$(filterGender "$1" Z)" | wc -l)"
+}
+
+max=0
+
+#parsovani argumentu
+while getopts $optstring options; do
+
+    case "${options}" in
+        a)
+            case ${OPTARG} in
+                daily|infected|merge|age|gender|monthly|yearly|countries|districts|regions)
+                    cmd=${OPTARG}
+                break;;
+            esac
+
+            after=${OPTARG}
+        ;;
+        b)
+            case ${OPTARG} in
+                daily|infected|merge|age|gender|monthly|yearly|countries|districts|regions)
+                    cmd=${OPTARG}
+                break;;
+            esac
+
+            before=${OPTARG}
+
+        ;;
+        g)
+            case ${OPTARG} in
+                daily|infected|merge|age|gender|monthly|yearly|countries|districts|regions)
+                    cmd=${OPTARG}
+                break;;
+            esac
+
+            gender=${OPTARG}
+        ;;
+        s) #je potreba udelat optional
+            graphic=1
+            width=${OPTARG}
+            case ${OPTARG} in
+                regions)
+                    cmd=${OPTARG}
+                    max=10000
+                    width=-1
+                break;;
+                districts)
+                    cmd=${OPTARG}
+                    max=1000
+                    width=-1
+                break;;
+                countries)
+                    cmd=${OPTARG}
+                    max=100
+                    width=-1
+                break;;
+                yearly)
+                    cmd=${OPTARG}
+                    max=100000
+                    width=-1
+                break;;
+                monthly)
+                    cmd=${OPTARG}
+                    max=10000
+                    width=-1
+                break;;
+                daily)
+                    cmd=${OPTARG}
+                    max=500
+                    width=-1
+                break;;
+                age)
+                    cmd=${OPTARG}
+                    max=10000
+                    width=-1
+                break;;
+                gender)
+                    cmd=${OPTARG}
+                    max=100000
+                    width=-1
+                break;;
+                infected|merge)
+                    cmd=${OPTARG}
+                    width=-1
+                break;;
+            esac
+        ;;
+        h)
+            echo "help"
+        ;;
+    esac
+done
+#parsovani commandu
+shift $(($OPTIND -1))
+
+#kontrola jestli obsahuje prikaz pokud ano, tak ho to nacte a posune args.
+if [[ "$1" != *"."* ]] && [[ $# -gt 0 ]]; then
+    cmd=$1
+    shift
+fi
+
+
+if [[ $# -eq 0 ]]; then
+    string="$(cat)"
+    doCommand
+fi
+
+
+while [[ $# -gt 0 ]]; do
+
+
+
+    case $1 in
+
+        *.bz2)
+            string=$(bunzip2 -c "$1")
+        ;;
+        *.gz)
+            string=$(gunzip -c "$1")
+        ;;
+        *)
+            string="$(cat $1)"
+        ;;
+
+    esac
+
+    doCommand
+    shift
+
+done
+
+
+
+case "$cmd" in
+
+    merge|"")
+        echo "id,datum,vek,pohlavi,kraj_nuts_kod,okres_lau_kod,nakaza_v_zahranici,nakaza_zeme_csu_kod,reportovano_khs"
+        echo -e "$result"
+
+    ;;
+    *)
+
+        if  [[ $width -gt 0 ]]; then
+            if [ -n "$graphic" ]; then
+                result="$(echo "$result" | awk -F ':' -v width="$width" -v max="$(echo "$result" | awk -F ':' 'BEGIN{max=$2}NF{max=(max>$2)?max:$2}END{print max}')" '{symbol="#";result=""; for(i=0; i<width*$2/max -1; i++){result = result symbol;} $2 =result; printf "%s: %s\n",$1 , $2}')"
+            fi
+        else
+            if [ -n "$graphic" ]; then
+                result="$(echo "$result" | awk -F ':' -v max="$max" '{symbol="#";result=""; for(i=0; i<$2/max -1; i++){result = result symbol;} $2 =result; printf "%s: %s\n",$1 , $2}')"
+            fi
+        fi
+        echo -e "$result"
+    ;;
+esac
+
+#cat test2.csv | awk -F ':' -v biggest=630 -v max=6 '{symbol="#";result=""; for(i=0; i<max*$2/biggest; i++){result = result symbol;} $2 =result; printf "%s: %s\n",$1 , $2}'
