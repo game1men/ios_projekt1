@@ -2,10 +2,13 @@
 
 Jedna se o projekt na procvičení bahse do předmětu IOS. 
 
-[zadani pdf](1._Uloha_IOS_2022.pdf) 
-zadani:
----
+[zadání pdf](1._Uloha_IOS_2022.pdf) 
 
+
+
+# Zadání markdown :
+
+---
 
 # 1. Úloha IOS (2022)
 
